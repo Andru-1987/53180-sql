@@ -2,7 +2,6 @@
 
 -- CLASE 13
 -- INSERCION CON IMPORTACION
--- LINK :  https://docs.google.com/presentation/d/e/2PACX-1vTxRLci830ZIrfZ5tauywMg1F5ibw_MZrIRoP5pMggEY-uIVPZ2Lj_tEDzFG9LHgw/pub?start=false&loop=false&delayms=3000
 
 
 ## Bases de Datos en MySQL: Importación de Archivos CSV y JSON

@@ -515,3 +515,355 @@ DELIMITER ;
 
 CALL insertar_producto('Producto 1');
 CALL insertar_producto(''); -- ERROR: no se pudo crear el producto indicado
+
+
+
+-- <CONTENIDO DE CLASE> -- 
+
+USE coderhouse_gamers;
+
+
+CREATE TABLE PAY (
+	id		INT NOT NULL PRIMARY KEY ,
+    monto	DECIMAL(12,2) ,
+    fecha	DATE ,
+    id_game INT
+) ;
+
+
+
+
+SELECT 
+	*
+FROM PAY;
+
+-- QUE ME MUESTRE EL VALOR CON IVA DEL MONTO PAGADO
+-- 21%  --> parametro monto IN
+
+DROP FUNCTION IF EXISTS fn_IVA;
+
+DELIMITER //
+CREATE FUNCTION fn_IVA( precio DECIMAL(12,2) ) 
+	RETURNS DECIMAL(12,4)
+    DETERMINISTIC
+    COMMENT "ESTA FUNCION ME RETORNA EL PRECIO CON EL IVA"
+BEGIN
+	RETURN precio * 1.21 ;
+END//
+
+DELIMITER ;
+
+
+
+-- FUNCTION NOT DETERMINISTIC 
+DELIMITER //
+CREATE FUNCTION 
+		dame_una_fecha() 
+    RETURNS DATE
+    NOT DETERMINISTIC
+    NO SQL
+BEGIN
+		RETURN CURRENT_DATE() + INTERVAL RAND() DAY ;
+END//
+
+DELIMITER ;
+
+
+
+SELECT dame_una_fecha() FROM DUAL;
+
+
+
+SELECT fn_IVA(100) AS VALOR_CON_IVA FROM DUAL;
+
+SELECT 
+	id
+,	monto
+,	fn_IVA(monto) AS monto_con_iva
+,	fecha
+FROM PAY ;
+
+
+
+-- 
+
+
+DROP FUNCTION IF EXISTS fn_IVA_FULL;
+
+DELIMITER //
+CREATE FUNCTION fn_IVA_FULL( precio DECIMAL(12,2) , id_game INT ) 
+	RETURNS DECIMAL(12,4)
+    DETERMINISTIC
+    COMMENT "ESTA FUNCION ME RETORNA EL PRECIO CON EL IVA"
+BEGIN
+	IF id_game > 2 THEN
+		RETURN precio * 1.105 ;
+    ELSE
+		RETURN precio * 1.21 ;
+	END IF;
+    
+END//
+
+DELIMITER //
+CREATE FUNCTION condicion_IVA( id_game INT ) 
+	RETURNS VARCHAR(50)
+    DETERMINISTIC
+    COMMENT "ESTA FUNCION ME RETORNA LA CONDICION DEL IVA"
+BEGIN
+	IF id_game > 2 THEN
+		RETURN "IVA DEL 10.5%";
+    ELSE
+		RETURN "IVA DEL 21%" ;
+	END IF;
+    
+END//
+DELIMITER ;
+
+
+
+CREATE TABLE coderhouse_gamers.IVA_ARG 
+	AS
+			SELECT 10.5 AS VALOR_IVA , "TECH" AS TIPO FROM DUAL
+UNION ALL 	SELECT 21 AS VALOR_IVA   , "COMUN" AS TIPO FROM DUAL;
+
+
+SELECT * FROM
+coderhouse_gamers.IVA_ARG ;
+
+
+
+
+
+SELECT 
+	id
+,	monto
+,	id_game
+,	fn_IVA_FULL(monto,id_game) AS monto_con_iva
+,	condicion_IVA(id_game) AS condicion_iva
+,	fecha
+FROM PAY ;
+
+
+
+
+
+DROP FUNCTION IF EXISTS fn_IVA_FULL_ARG;
+
+DELIMITER //
+CREATE FUNCTION fn_IVA_FULL_ARG( precio DECIMAL(12,2) , id_game INT ) 
+	RETURNS DECIMAL(12,4)
+    DETERMINISTIC
+    READS SQL DATA
+    COMMENT "ESTA FUNCION ME RETORNA EL PRECIO CON EL IVA"
+BEGIN
+	DECLARE iva DECIMAL(12,2) ;
+
+	IF id_game > 2 THEN
+		-- Busco el valor del iva en una tabla SQL
+		SELECT 
+			VALOR_IVA INTO iva
+		FROM IVA_ARG
+        WHERE TIPO LIKE "TECH";
+    ELSE		
+		SELECT 
+			VALOR_IVA INTO iva
+		FROM IVA_ARG
+        WHERE TIPO LIKE "COMUN";
+	
+	END IF;
+
+	RETURN precio *  (1 + iva/100);
+END//
+DELIMITER ;
+
+
+
+SELECT 
+	id
+,	monto
+,	id_game
+,	fn_IVA_FULL_ARG(monto,id_game) AS monto_con_iva
+,	condicion_IVA(id_game) AS condicion_iva
+,	fecha
+FROM PAY ;
+
+
+CREATE TABLE coderhouse_gamers.IVA_PERU 
+	AS
+			SELECT 17 AS VALOR_IVA , "TECH" AS TIPO FROM DUAL
+UNION ALL 	SELECT 35 AS VALOR_IVA   , "COMUN" AS TIPO FROM DUAL;
+
+
+SELECT *  FROM IVA_PERU;
+
+
+
+DROP FUNCTION IF EXISTS fn_IVA_FULL_PERU;
+DELIMITER //
+CREATE FUNCTION fn_IVA_FULL_PERU( precio DECIMAL(12,2) , id_game INT , tipo_iva VARCHAR(50) ) 
+	RETURNS DECIMAL(12,4)
+    DETERMINISTIC
+    READS SQL DATA
+    COMMENT "ESTA FUNCION ME RETORNA EL PRECIO CON EL IVA"
+BEGIN
+	DECLARE iva DECIMAL(12,2) ;
+	
+    IF tipo_iva != "" THEN
+		CASE WHEN id_game > 2 THEN
+			SELECT 
+				VALOR_IVA INTO iva
+			FROM IVA_PERU
+			WHERE TIPO LIKE tipo_iva
+			LIMIT 1;
+		
+			WHEN id_game < 2 THEN
+			SELECT 
+				VALOR_IVA INTO iva
+			FROM IVA_PERU
+			WHERE TIPO LIKE tipo_iva
+			LIMIT 1;
+		ELSE
+			SET iva = 50;
+		END CASE;
+		
+		RETURN precio *  (1 + iva/100);
+        
+	ELSE
+		SIGNAL SQLSTATE '45000' -- '01000'
+        SET MESSAGE_TEXT  = '>>> No me pasaste el tipo de iva', MYSQL_ERRNO = 1000;
+    END IF;
+    
+    RETURN NULL ;
+END//
+DELIMITER ;
+
+SELECT 
+	id
+,	monto
+,	id_game
+,	fn_IVA_FULL_PERU(monto,id_game, "") AS monto_con_iva
+,	fecha
+FROM PAY ;
+
+
+-- <sql> 
+-- params :  id_game INT
+-- output: name VARCHAR
+-- fn_name:  fn_get_name
+
+DROP FUNCTION  IF EXISTS fn_get_name;
+
+DELIMITER //
+CREATE FUNCTION fn_get_name( id_game_in INT)
+	RETURNS VARCHAR(100)
+    READS SQL DATA
+BEGIN
+	DECLARE nombre_de_juego VARCHAR(100);
+
+	IF id_game_in IS NULL THEN
+		SIGNAL SQLSTATE '45000' -- '01000'
+        SET MESSAGE_TEXT  = '>>> No me pasaste valor alguno', MYSQL_ERRNO = 1000;
+        RETURN NULL;
+    ELSEIF id_game_in = 0 THEN
+    	SIGNAL SQLSTATE '45000' -- '01000'
+        SET MESSAGE_TEXT  = '>>> Me pasaste un valor inexistente', MYSQL_ERRNO = 1000;
+		RETURN NULL;
+    ELSE
+		SELECT 
+			name INTO nombre_de_juego
+		FROM coderhouse_gamers.GAME
+		WHERE 
+			id_game = id_game_in 
+		LIMIT 1;
+        
+		RETURN nombre_de_juego ;
+	END IF;
+END //
+
+DELIMITER ; 
+
+
+SELECT 
+	fn_get_name(id_game)  AS nombre_de_juego
+,	monto
+,	fecha
+FROM PAY ;
+
+
+-- PROCEDURES
+-- paramas : usuario_id
+-- out_procedure_steps : 
+	-- buscar usuario 	
+    -- SI -> Traeme la data
+    -- NO -> SALIR SP
+    -- Traer cantidad de registros de comments
+    -- Traer los comentarios de ese usuario
+    
+DROP PROCEDURE IF EXISTS sp_datos_system_user ;
+
+DELIMITER //
+CREATE PROCEDURE sp_datos_system_user( IN id_user INT)
+BEGIN
+
+	DECLARE exists_user INT DEFAULT 0;
+
+	SELECT COUNT(1) INTO exists_user
+    FROM SYSTEM_USER
+    WHERE id_system_user = id_user; 
+
+    IF exists_user = 0 THEN
+		SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT  = '>>> No existe este usuario', MYSQL_ERRNO = 1000;
+	ELSE
+		-- SI TIENE MAS DE 2 COMENTARIOS ME TRAIGA LOS COMENTARIOS SI NO -> UN TEXTO QUE DIGA NO TIENE 
+        -- MAS DE 2 COMENTARIOS
+		SET @cantidad_comentarios = 0 ;
+		
+		SELECT 
+			COUNT(1) AS cantidad_comentarios INTO @cantidad_comentarios
+        FROM COMMENTARY
+        WHERE id_system_user = id_user
+        GROUP BY id_system_user
+        ;
+        
+        IF @cantidad_comentarios > 2 THEN
+			SELECT 
+				id_system_user
+			,	commentary
+			FROM COMMENTARY
+			WHERE id_system_user = id_user;
+        ELSE
+			SELECT "No tiene mas de 2 comentarios hechos" AS  MSG;
+		END IF;
+    END IF;
+    
+END//
+DELIMITER ; 
+
+-- T-SQL | PLSQL
+
+
+CALL sp_datos_system_user(175) ;
+
+
+DROP PROCEDURE IF EXISTS sp_order_by;
+DELIMITER //
+CREATE PROCEDURE sp_order_by ( IN column_order VARCHAR(100))
+BEGIN
+	SET @query_stmt = "SELECT * FROM GAME";
+    IF column_order = "" THEN
+		SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT  = '>>> No puedo ordenarlo de acuerdo a lo pedido', MYSQL_ERRNO = 1000;
+    ELSE
+		SET @query_stmt = CONCAT(@query_stmt , " ORDER BY ",column_order , " DESC" ) ;
+		SELECT @query_stmt FROM DUAL;
+        
+        PREPARE runSQL FROM @query_stmt ;
+        EXECUTE runSQL ;
+        DEALLOCATE PREPARE runSQL ;
+	END IF;
+END//
+DELIMITER ; 
+
+
+CALL sp_order_by("id_class");

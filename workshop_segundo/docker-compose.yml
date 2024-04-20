@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  mysql:
+    container_name: mysql
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: anderson123!
+      MYSQL_DATABASE: coderhouse
+      MYSQL_USER: anderson
+      MYSQL_PASSWORD: anderson123!
+    volumes:
+      - ./mysql:/var/lib/mysql
+      - ./data_csv/:/data_csv/
+      - ./objetos_sql:/objetos_sql/
+      - ./database_ddl.sql:/database_ddl.sql
+      - ./Makefile:/Makefile
+      - ./population.sql:/population.sql
+    ports:
+      - "3306:3306"

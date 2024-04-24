@@ -10,7 +10,7 @@ services:
       MYSQL_USER: anderson
       MYSQL_PASSWORD: anderson123!
     volumes:
-      - ./mysql:/var/lib/mysql
+      # - ./mysql:/var/lib/mysql
       - ./data_csv/:/data_csv/
       - ./objetos_sql:/objetos_sql/
       - ./database_ddl.sql:/database_ddl.sql

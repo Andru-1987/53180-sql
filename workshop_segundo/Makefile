@@ -16,6 +16,14 @@ FILES := $(wildcard ./objetos_sql/*.sql)
 all: up objects
 
 up:
+
+	@echo "Create the instance of docker"
+	docker compose up -d --build
+
+	. ./waiter.sh
+
+	@echo "Waiting for MySQL to be ready..."
+
 	@echo "Create the import and run de script"
 	docker exec -it mysql mysql -u root -p$(PASSWORD) -e "source $(DATABASE_CREATION);"
 	docker exec -it mysql mysql -u root -p$(PASSWORD) --local-infile=1 -e "source $(DATABASE_POPULATION)"
@@ -31,4 +39,5 @@ clean:
 	@echo "Remove the Database"
 	docker exec -it mysql mysql -u root -p$(PASSWORD) --host $(HOST) --port $(PORT) -e "DROP DATABASE IF EXISTS mozo_atr;"
 	@echo "Bye"
+	docker compose down
 

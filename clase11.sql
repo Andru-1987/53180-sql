@@ -1,4 +1,3 @@
--- LINK: https://docs.google.com/presentation/d/e/2PACX-1vQx5FEF7I3G7p7NzKH2lv-xrlMYJlme1vUVamyDh5TjOjbLkocXwrrgufZBHSoDFg/pub?start=false&loop=false&delayms=3000
 
 /*
 

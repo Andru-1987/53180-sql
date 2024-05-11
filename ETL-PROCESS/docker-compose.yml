@@ -1,0 +1,90 @@
+version: "3.8"
+
+services:
+  clean-csv:
+    build: 
+      dockerfile: ./python-ET/Dockerfile
+    container_name: data-process
+    environment:
+      FILE: "/data/sample_store.csv"
+      FILE_OUTPUT: "/data/sample_store_clean.csv"
+      CSV_FILE: "/data/insurance_data_1000.csv"
+      CSV_PATH: "https://raw.githubusercontent.com/Andru-1987/csv_files_ds/main/insurance_data_1000.csv"
+    volumes:
+      - ./data:/data
+
+  etl:
+    image: postgres:latest 
+    container_name: pg-container
+    environment:
+      POSTGRES_USER: "andru"  
+      POSTGRES_PASSWORD: "1234"  
+      POSTGRES_DB: "database_stage"
+    volumes:
+      - ./data:/data
+      - ./pg_database/pg_db.sql:/docker-entrypoint-initdb.d/init.sql
+    depends_on:
+      - clean-csv
+    restart: on-failure
+    # ports:
+    #   - 5432:5432
+
+  mysql:
+    image: mysql:latest
+    container_name: mysql-container
+    environment:
+      MYSQL_DATABASE: database_stage
+      MYSQL_ROOT_PASSWORD: coderhouse
+    volumes:
+      - ./mysql_container:/mysql_container
+      - ./mysql_container/stage.sql:/docker-entrypoint-initdb.d/init.sql
+    depends_on:
+      - clean-csv
+    restart: on-failure
+    ports:
+      - 3306:3306
+  
+  wait_until_ready:
+    build: 
+      dockerfile: ./wait_until_ready/Dockerfile
+    container_name: exporter
+    depends_on:
+      - etl
+      - mysql
+    volumes:
+      - ./wait_until_ready/etl-waiter.sh:/etl-waiter.sh
+      - ./wait_until_ready/export.log:/export.log
+      - ./data:/data
+    command: /bin/sh -c "/bin/sh /etl-waiter.sh"
+    environment:
+      POSTGRES_HOST: pg-container
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: andru
+      POSTGRES_PASSWORD: "1234"
+      POSTGRES_DB: database_stage
+      MYSQL_HOST: mysql-container
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: example
+      MYSQL_DB: mysql_db
+    healthcheck:
+      test: "exit 0"
+  
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    hostname: metabase
+    ports:
+      - 3000:3000
+    environment:
+      MB_DB_TYPE: mysql
+      MB_DB_DBNAME: database_stage
+      MB_DB_PORT: 3306
+      MB_DB_USER: root
+      MB_DB_PASS: coderhouse
+      MB_DB_HOST: mysql-container
+    healthcheck:
+      test: curl --fail -I http://localhost:3000/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
